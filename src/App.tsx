@@ -38,7 +38,7 @@ function ChooserScreen({ onChoose }: { onChoose: (c: Choice) => void }) {
           </div>
           <div>
             <div style={{ fontWeight: 800, fontSize: 18, color: '#134e4a' }}>Elder</div>
-            <div style={{ fontWeight: 600, fontSize: 13, color: '#6b7280', marginTop: 2 }}>Medicine reminders with Sakha</div>
+            <div style={{ fontWeight: 600, fontSize: 13, color: '#6b7280', marginTop: 2 }}>A companion for everyday care</div>
           </div>
         </button>
 
