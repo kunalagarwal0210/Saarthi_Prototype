@@ -52,7 +52,7 @@ const INDIAN_VOICE_NAMES = ['neerja', 'prabhat', 'heera', 'ravi', 'veena', 'rish
 // breaks while only some lines are recorded yet.
 const AUDIO_CLIPS: Record<string, string> = {
   "Hi, I'm Sakha.": '/audio/greeting.mp3',
-  "I'll remind you about your medicine. That's all I'll do for now.": '/audio/promise.mp3',
+  "Think of me as your daily companion — medicines, walks, and a little company whenever you need it.": '/audio/promise.mp3',
   "Here's what I'll remind you about.": '/audio/preview.mp3',
   "Hold on, you'll get a call for help soon.": '/audio/callback.mp3',
   "Good morning, Mrs. Verma. It's time for your morning medicine.": '/audio/reminder1.mp3',
