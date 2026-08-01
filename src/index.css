@@ -9,6 +9,27 @@ html, body, #root { margin: 0; padding: 0; width: 100%; height: 100%; font-famil
 * { scrollbar-width: none; }
 *::-webkit-scrollbar { display: none; }
 
+/* Hide native browser calendar icon — we render our own (adult-child, Date of Birth field).
+   IMPORTANT: do NOT set appearance:none / -webkit-appearance:none on the
+   input[type=date] element itself — in Chrome that switches the control into
+   a rendering mode where the calendar icon becomes a separate, non-removable
+   control that ignores the ::-webkit-calendar-picker-indicator rule below,
+   producing a second icon. Only target the pseudo-element. */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  display: none;
+  -webkit-appearance: none;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+}
+/* Firefox draws its own non-removable calendar glyph unless the field is
+   switched to a plain textfield rendering. */
+input[type="date"] {
+  -moz-appearance: textfield;
+}
+
 /* ── Notification slide-in ── */
 @keyframes slideDown {
   from { transform: translateY(-110%); opacity: 0; }

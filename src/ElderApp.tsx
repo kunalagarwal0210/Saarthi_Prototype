@@ -36,6 +36,8 @@ type AppState =
   | 'onboarding-greeting' | 'onboarding-promise' | 'onboarding-preview' | 'onboarding-callback'
   | 'lockscreen' | 'notification' | 'speaking' | 'voice-listening' | 'voice-detected' | 'confirmed' | 'snoozed'
   | 'weekly-checkin'
+  | 'walk-notification' | 'walk-listening' | 'walk-detected'
+  | 'walk-bhajan-offer' | 'walk-bhajan-playing' | 'walk-done'
 
 // ─── Speech synthesis ─────────────────────────────────────────────────────────
 // Common calm, natural-sounding Indian-English voice names across platforms:
@@ -59,6 +61,13 @@ const AUDIO_CLIPS: Record<string, string> = {
   "No problem at all, Mrs. Verma. I'll remind you again in 10 minutes. Take care!": '/audio/snooze.mp3',
   "You've taken your medicine on time 6 days this week.": '/audio/weekly.mp3',
   "Wonderful, Mrs. Verma! You're taking great care of yourself. Keep it up!": '/audio/confirmed.mp3',
+  "It's such a pleasant evening — perhaps a short walk would feel nice?": '/audio/walk_suggest.mp3',
+  "Wonderful! Would you like some bhajans to keep you company along the way?": '/audio/bhajan_offer_accepted.mp3',
+  "That's alright, take your time. Would you like to listen to a bhajan instead, just to relax?": '/audio/bhajan_offer_declined.mp3',
+  "Enjoy your walk — here's a little bhajan to keep you company.": '/audio/walk_done_with_bhajan.mp3',
+  "Enjoy your walk!": '/audio/walk_done_no_bhajan.mp3',
+  "Here's a bhajan for you. Take care.": '/audio/relax_with_bhajan.mp3',
+  "Take care, maybe another time.": '/audio/relax_no_bhajan.mp3',
 }
 
 function useSpeech() {
@@ -317,6 +326,31 @@ function MedicineCard({ compact }: { compact?: boolean }) {
   )
 }
 
+// ─── Walk card (framed as a suggestion, not an instruction) ────────────────────
+function WalkCard({ compact }: { compact?: boolean }) {
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ background:`linear-gradient(135deg,${T.teal50},${T.teal100})`, border:`1.5px solid ${T.tealA15}` }}>
+      <div className="flex items-start gap-3 p-3">
+        <div className="rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center" style={{ width: compact?64:76, height: compact?64:76, border:`2px solid ${T.tealA25}`, background:`linear-gradient(135deg,${T.teal100},${T.teal50})` }}>
+          <span style={{ fontSize: compact?30:36 }}>🚶</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div style={{ fontFamily:"'DM Serif Display',Georgia,serif", fontSize: compact?18:20, color:'#134e4a', lineHeight:1.2 }}>Evening Walk</div>
+          <div style={{ fontWeight:800, fontSize: compact?15:17, color:T.teal600, marginTop:2 }}>A gentle suggestion</div>
+          <div className="flex items-center gap-2 mt-2">
+            <span style={{ fontSize:13 }}>🌇</span>
+            <span style={{ fontWeight:600, fontSize:14, color:T.teal700 }}>Around evening · Optional</span>
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 px-3 py-2 mx-3 mb-3 rounded-xl" style={{ background: T.tealA10, border:`1px solid ${T.tealA20}` }}>
+        <span style={{ fontSize:16 }}>💬</span>
+        <span style={{ fontWeight:700, fontSize:14, color:T.teal700 }}>Totally up to you, always</span>
+      </div>
+    </div>
+  )
+}
+
 // ─── Script lines ─────────────────────────────────────────────────────────────
 const SCRIPT = [
   "Good morning, Mrs. Verma. It's time for your morning medicine.",
@@ -326,8 +360,8 @@ const SCRIPT = [
 
 // ─── Onboarding script lines ────────────────────────────────────────────────────
 const ONBOARD_GREETING = "Hi, I'm Sakha."
-const ONBOARD_PROMISE  = "I'll remind you about your medicine. That's all I'll do for now."
-const ONBOARD_PREVIEW_LINE = "Here's what I'll remind you about."
+const ONBOARD_PROMISE  = "Think of me as your daily companion — medicines, walks, and a little company whenever you need it."
+const ONBOARD_PREVIEW_LINE = "Here's what I'll help you with."
 const CALLBACK_LINE = "Hold on, you'll get a call for help soon."
 
 // ─── Weekly check-in (calm, factual — no gamification) ─────────────────────────
@@ -335,6 +369,16 @@ const WEEK_DAYS = ['S','M','T','W','T','F','S']
 const WEEK_TAKEN = [true, true, true, false, true, true, true] // demo data — 6 of 7
 const WEEK_TAKEN_COUNT = WEEK_TAKEN.filter(Boolean).length
 const WEEKLY_LINE = `You've taken your medicine on time ${WEEK_TAKEN_COUNT} days this week.`
+
+// ─── Walk suggestion (advice, not a task — easy to decline, no re-nagging) ──────
+const WALK_LINE = "It's such a pleasant evening — perhaps a short walk would feel nice?"
+const BHAJAN_OFFER_ACCEPTED = "Wonderful! Would you like some bhajans to keep you company along the way?"
+const BHAJAN_OFFER_DECLINED = "That's alright, take your time. Would you like to listen to a bhajan instead, just to relax?"
+const WALK_DONE_WITH_BHAJAN = "Enjoy your walk — here's a little bhajan to keep you company."
+const WALK_DONE_NO_BHAJAN = "Enjoy your walk!"
+const RELAX_WITH_BHAJAN = "Here's a bhajan for you. Take care."
+const RELAX_NO_BHAJAN = "Take care, maybe another time."
+const BHAJAN_CLIP_URL = '/audio/bhajan.mp3'
 
 // ─── Pressable button ─────────────────────────────────────────────────────────
 function Btn({ onClick, bg, border, color, shadow, children, minH = 64 }: {
@@ -414,6 +458,10 @@ export default function ElderApp() {
   // ── Weekly check-in state ────────────────────────────────────────────────
   const [confirmCount, setConfirmCount] = useState(0)
 
+  // ── Walk suggestion state ────────────────────────────────────────────────
+  const [walkAccepted, setWalkAccepted] = useState(false)
+  const [voiceContext, setVoiceContext] = useState<'medicine' | 'walk'>('medicine')
+
   const { speak, cancel } = useSpeech()
 
   const curLine  = SCRIPT[Math.min(lineIdx, SCRIPT.length - 1)]
@@ -430,6 +478,9 @@ export default function ElderApp() {
     state === 'onboarding-promise' || state === 'onboarding-preview'
   const onboardTyped = useTypewriter(onboardLine, onboardActive, 34)
   const callbackTyped = useTypewriter(CALLBACK_LINE, state === 'onboarding-callback', 34)
+  const walkTyped = useTypewriter(WALK_LINE, state === 'walk-notification', 34)
+  const bhajanOfferLine = walkAccepted ? BHAJAN_OFFER_ACCEPTED : BHAJAN_OFFER_DECLINED
+  const bhajanOfferTyped = useTypewriter(bhajanOfferLine, state === 'walk-bhajan-offer', 34)
 
   useEffect(() => {
     if (state !== 'lockscreen') return
@@ -472,25 +523,46 @@ export default function ElderApp() {
     speak("No problem at all, Mrs. Verma. I'll remind you again in 10 minutes. Take care!")
   }, [cancel, speak])
 
+  const handleWalkAccept = useCallback(() => {
+    cancel(); setWalkAccepted(true); setState('walk-bhajan-offer')
+  }, [cancel])
+
+  const handleWalkDecline = useCallback(() => {
+    cancel(); setWalkAccepted(false); setState('walk-bhajan-offer')
+  }, [cancel])
+
   const onInterim = useCallback((t: string) => setDetected(t), [])
   const onFinal   = useCallback((t: string) => {
-    setHeardFinal(t); setState('voice-detected')
+    const detectedState = voiceContext === 'walk' ? 'walk-detected' : 'voice-detected'
+    setHeardFinal(t); setState(detectedState)
     setTimeout(() => {
       const lower = t.toLowerCase()
+      if (voiceContext === 'walk') {
+        if (/\b(yes|sure|okay|ok|let's|lets|walk|haan|ha)\b/.test(lower)) handleWalkAccept()
+        else if (/\b(no|not today|later|nahi|naheen)\b/.test(lower)) handleWalkDecline()
+        else { setState('walk-notification'); setDetected(''); setHeardFinal('') }
+        return
+      }
       if (/\b(yes|taken|done|ate|i have|already|finished|ok|okay|haan|ha)\b/.test(lower)) handleTaken()
       else if (/\b(no|later|remind|wait|not yet|nahi|naheen)\b/.test(lower)) handleSnooze()
       else { setState('speaking'); setDetected(''); setHeardFinal('') }
     }, 1200)
-  }, [handleTaken, handleSnooze])
+  }, [voiceContext, handleTaken, handleSnooze, handleWalkAccept, handleWalkDecline])
 
   const onEnd = useCallback(() => {
-    setDetected(prev => { if (!prev) setState('speaking'); return prev })
-  }, [])
+    setDetected(prev => { if (!prev) setState(voiceContext === 'walk' ? 'walk-notification' : 'speaking'); return prev })
+  }, [voiceContext])
 
   const { start: startListening, stop: stopListening } = useSpeechRecognition(onInterim, onFinal, onEnd)
 
   const handleMic = useCallback(() => {
-    cancel(); setDetected(''); setHeardFinal(''); setState('voice-listening')
+    cancel(); setDetected(''); setHeardFinal(''); setVoiceContext('medicine'); setState('voice-listening')
+    const ok = startListening()
+    if (!ok) setMicAvail(false)
+  }, [cancel, startListening])
+
+  const handleWalkMic = useCallback(() => {
+    cancel(); setDetected(''); setHeardFinal(''); setVoiceContext('walk'); setState('walk-listening')
     const ok = startListening()
     if (!ok) setMicAvail(false)
   }, [cancel, startListening])
@@ -540,6 +612,47 @@ export default function ElderApp() {
     speak(WEEKLY_LINE)
   }, [state, speak])
 
+  // ── Walk suggestion sequencing ───────────────────────────────────────────
+  useEffect(() => {
+    if (state !== 'walk-notification') return
+    speak(WALK_LINE)
+  }, [state, speak])
+
+  useEffect(() => {
+    if (state !== 'walk-bhajan-offer') return
+    speak(bhajanOfferLine)
+  }, [state, bhajanOfferLine, speak])
+
+  const handleBhajanYes = useCallback(() => {
+    cancel(); setState('walk-bhajan-playing')
+  }, [cancel])
+
+  const handleBhajanNo = useCallback(() => {
+    cancel(); setState('walk-done')
+  }, [cancel])
+
+  const bhajanMusicRef = useRef<HTMLAudioElement | null>(null)
+  useEffect(() => {
+    if (state !== 'walk-bhajan-playing') { bhajanMusicRef.current?.pause(); return }
+    speak(walkAccepted ? WALK_DONE_WITH_BHAJAN : RELAX_WITH_BHAJAN)
+    const audio = new Audio(BHAJAN_CLIP_URL)
+    audio.loop = true
+    bhajanMusicRef.current = audio
+    audio.play().catch(() => {}) // clip not recorded yet — screen still works, just silent
+    return () => { audio.pause() }
+  }, [state, walkAccepted, speak])
+
+  useEffect(() => {
+    if (state !== 'walk-done') return
+    speak(walkAccepted ? WALK_DONE_NO_BHAJAN : RELAX_NO_BHAJAN)
+    const id = setTimeout(() => setState('lockscreen'), 4000)
+    return () => clearTimeout(id)
+  }, [state, walkAccepted, speak])
+
+  const handleWalkFinish = useCallback(() => {
+    cancel(); bhajanMusicRef.current?.pause(); setState('lockscreen')
+  }, [cancel])
+
   // DEMO ONLY: shows the weekly check-in after every single confirmation so it's
   // easy to test/preview. In production this should go back to `next % 7 === 0`
   // (once every 7th confirmed dose) instead of always true.
@@ -551,6 +664,14 @@ export default function ElderApp() {
     setConfirmCount(next)
     setState((DEMO_SHOW_WEEKLY_EVERY_TIME || next % 7 === 0) ? 'weekly-checkin' : 'lockscreen')
   }, [cancel, confirmCount])
+
+  // DEMO ONLY: chains straight into the walk suggestion after the weekly
+  // check-in so the whole flow is reachable in one click-through. In
+  // production the walk suggestion would trigger on its own schedule
+  // (e.g. evening), independent of the medicine/weekly cycle.
+  const handleWeeklyCheckinDone = useCallback(() => {
+    cancel(); setState('walk-notification')
+  }, [cancel])
 
   // ── Notification card ───────────────────────────────────────────────────────
   const NotifCard = (
@@ -727,7 +848,10 @@ export default function ElderApp() {
                     )}
                   </p>
                 </div>
-                <div className="px-3 pb-3"><MedicineCard/></div>
+                <div className="px-3 pb-3 flex flex-col gap-2.5">
+                  <MedicineCard/>
+                  <WalkCard/>
+                </div>
               </div>
 
               <div className="w-full flex flex-col items-center gap-1 mt-2">
@@ -788,8 +912,8 @@ export default function ElderApp() {
           </div>
         )}
 
-        {/* ── VOICE LISTENING ── */}
-        {(state === 'voice-listening' || state === 'voice-detected') && (
+        {/* ── VOICE LISTENING (medicine + walk share this shell) ── */}
+        {(state === 'voice-listening' || state === 'voice-detected' || state === 'walk-listening' || state === 'walk-detected') && (
           <div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden" style={{ animation:'fadeIn 0.3s ease-out' }}>
             <ScrollTopMask/>
             <LockClock/>
@@ -801,7 +925,9 @@ export default function ElderApp() {
                 </div>
                 <div>
                   <div style={{ fontWeight:700, fontSize:13, color:T.teal700 }}>Sakha</div>
-                  <div style={{ fontWeight:600, fontSize:12, color:T.teal600 }}>Amlodipine 5 mg · 9:00 AM</div>
+                  <div style={{ fontWeight:600, fontSize:12, color:T.teal600 }}>
+                    {voiceContext === 'walk' ? 'Evening Walk · Just a suggestion' : 'Amlodipine 5 mg · 9:00 AM'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -810,7 +936,7 @@ export default function ElderApp() {
             <div className="flex-1 mx-3 rounded-3xl flex flex-col items-center justify-center gap-5 p-6" style={{
               background:'#ffffff', border:`1.5px solid ${T.tealA15}`, boxShadow: T.cardShadow,
             }}>
-              {state === 'voice-detected' && heardFinal ? (
+              {(state === 'voice-detected' || state === 'walk-detected') && heardFinal ? (
                 <div className="flex flex-col items-center gap-4 w-full" style={{ animation:'voiceHeard 0.4s ease-out' }}>
                   <div style={{ fontSize:52 }}>👂</div>
                   <div style={{ fontFamily:"'DM Serif Display',Georgia,serif", fontSize:18, color:T.teal700, textAlign:'center' }}>I heard:</div>
@@ -846,17 +972,32 @@ export default function ElderApp() {
                   )}
 
                   <div style={{ fontWeight:600, fontSize:14, color:T.teal700, textAlign:'center' }}>
-                    Say <strong>"Yes, I've taken it"</strong> or <strong>"Remind me later"</strong>
+                    {voiceContext === 'walk'
+                      ? <>Say <strong>"Sure, let's walk"</strong> or <strong>"Not today"</strong></>
+                      : <>Say <strong>"Yes, I've taken it"</strong> or <strong>"Remind me later"</strong></>}
                   </div>
 
                   <div style={{ fontWeight:600, fontSize:13, color:'#9ca3af', marginTop:-8 }}>— or tap —</div>
                   <div className="w-full flex flex-col gap-2">
-                    <Btn onClick={() => { stopListening(); handleTaken() }} bg={T.greenGrad} color="white" shadow="0 4px 14px rgba(5,150,105,0.4)" minH={56}>
-                      <span style={{ fontSize:20 }}>✅</span> Yes, I've Taken It
-                    </Btn>
-                    <Btn onClick={() => { stopListening(); handleSnooze() }} bg="linear-gradient(135deg,#fffbeb,#fef3c7)" border="2px solid rgba(217,119,6,0.4)" color="#92400e" shadow="0 3px 10px rgba(217,119,6,0.2)" minH={56}>
-                      <span style={{ fontSize:20 }}>⏰</span> Remind Me in 10 Min
-                    </Btn>
+                    {voiceContext === 'walk' ? (
+                      <>
+                        <Btn onClick={() => { stopListening(); handleWalkAccept() }} bg={T.tealGrad} color="white" shadow={`0 4px 14px ${T.tealA40}`} minH={56}>
+                          <span style={{ fontSize:20 }}>🚶</span> Sure, Let's Walk
+                        </Btn>
+                        <Btn onClick={() => { stopListening(); handleWalkDecline() }} bg="#ffffff" border={`2px solid ${T.tealA25}`} color={T.teal700} minH={56}>
+                          Not Today
+                        </Btn>
+                      </>
+                    ) : (
+                      <>
+                        <Btn onClick={() => { stopListening(); handleTaken() }} bg={T.greenGrad} color="white" shadow="0 4px 14px rgba(5,150,105,0.4)" minH={56}>
+                          <span style={{ fontSize:20 }}>✅</span> Yes, I've Taken It
+                        </Btn>
+                        <Btn onClick={() => { stopListening(); handleSnooze() }} bg="linear-gradient(135deg,#fffbeb,#fef3c7)" border="2px solid rgba(217,119,6,0.4)" color="#92400e" shadow="0 3px 10px rgba(217,119,6,0.2)" minH={56}>
+                          <span style={{ fontSize:20 }}>⏰</span> Remind Me in 10 Min
+                        </Btn>
+                      </>
+                    )}
                   </div>
                 </>
               )}
@@ -1055,7 +1196,161 @@ export default function ElderApp() {
               </p>
             </div>
 
-            <Btn onClick={() => { cancel(); setState('lockscreen') }} bg={T.tealGrad} color="white" shadow={`0 6px 22px ${T.tealA40}`} minH={58}>
+            <Btn onClick={handleWeeklyCheckinDone} bg={T.tealGrad} color="white" shadow={`0 6px 22px ${T.tealA40}`} minH={58}>
+              Okay
+            </Btn>
+          </div>
+        )}
+
+        {/* ── WALK SUGGESTION (advice, not a task — easy to decline) ── */}
+        {state === 'walk-notification' && (
+          <div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden">
+            <ScrollTopMask/>
+            <LockClock/>
+            <div className="mx-3 flex flex-col gap-2.5" style={{ animation:'slideDown 0.5s cubic-bezier(0.34,1.56,0.64,1)' }}>
+              <div className="flex items-center gap-2 px-4 py-2 rounded-2xl" style={{ background: T.tealA10, border: `1px solid ${T.tealA20}` }}>
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: T.tealGrad }}>
+                  <span style={{ fontSize:15 }}>🚶</span>
+                </div>
+                <span style={{ fontWeight:700, fontSize:14, color:T.teal700 }}>Sakha</span>
+                <span style={{ fontSize:12, color:'#9ca3af', marginLeft:'auto' }}>just a thought</span>
+              </div>
+
+              <div className="rounded-3xl overflow-hidden" style={{ background:'#ffffff', border:`1.5px solid ${T.tealA15}`, boxShadow: T.cardShadow }}>
+                <div className="flex items-start gap-3 p-4 pb-3">
+                  <div className="relative flex-shrink-0" style={{ width:78, height:78 }}>
+                    <div className="absolute inset-0 rounded-full" style={{ background:`linear-gradient(135deg,${T.teal100},${T.teal50})` }}/>
+                    <div className="relative z-10 flex items-center justify-center w-full h-full">
+                      <Avatar expr="here_for_you" active size={70}/>
+                    </div>
+                    <SpeakRings active/>
+                  </div>
+                  <div className="flex-1 min-w-0 pt-0.5">
+                    <div style={{ fontWeight:800, fontSize:15, color:'#134e4a' }}>Sakha</div>
+                    <div className="mt-1.5 px-3 py-2 rounded-2xl rounded-tl-sm" style={{ background: T.tealBubble, border:`1.5px solid ${T.tealA20}`, minHeight:42 }}>
+                      <p style={{ fontSize:14, color:T.teal700, lineHeight:1.55, fontWeight:600, margin:0 }}>
+                        {walkTyped}
+                        {walkTyped.length < WALK_LINE.length && (
+                          <span style={{ animation:'breathe 0.7s infinite', display:'inline-block', color:T.teal500 }}>▋</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ height:1, background: T.tealA15, margin:'0 18px' }}/>
+                <div className="p-3 pb-2"><WalkCard compact/></div>
+
+                <div className="px-4 pb-5 flex flex-col gap-2.5">
+                  <button onClick={handleWalkMic} style={{
+                    width:'100%', minHeight:60, borderRadius:20,
+                    background: T.tealGrad, border: 'none', color:'white',
+                    fontFamily:"'Nunito',sans-serif", fontWeight:800, fontSize:17,
+                    cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:10,
+                    boxShadow:`0 6px 22px ${T.tealA40}`, letterSpacing:'0.01em',
+                  }}>
+                    <span style={{ fontSize:22 }}>🎤</span>
+                    {micAvail ? 'Speak Your Answer' : 'Voice Unavailable'}
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <div style={{ flex:1, height:1, background:'rgba(0,0,0,0.08)' }}/>
+                    <span style={{ fontSize:12, color:'#9ca3af', fontWeight:600 }}>or tap</span>
+                    <div style={{ flex:1, height:1, background:'rgba(0,0,0,0.08)' }}/>
+                  </div>
+
+                  <Btn onClick={handleWalkAccept} bg={T.tealGrad} color="white" shadow={`0 6px 22px ${T.tealA40}`}>
+                    <span style={{ fontSize:22 }}>🚶</span> Sure, Let's Walk
+                  </Btn>
+                  <Btn onClick={handleWalkDecline} bg="#ffffff" border={`2px solid ${T.tealA25}`} color={T.teal700}>
+                    Not Today
+                  </Btn>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── BHAJAN OFFER ── */}
+        {state === 'walk-bhajan-offer' && (
+          <div className="relative flex-1 flex flex-col overflow-y-auto overflow-x-hidden" style={{ animation:'fadeIn 0.3s ease-out' }}>
+            <ScrollTopMask/>
+            <LockClock/>
+            <div className="flex-1 flex flex-col items-center justify-center px-6 gap-5 pb-16">
+              <div className="relative" style={{ width:110, height:110 }}>
+                <div className="absolute inset-0 rounded-full" style={{ background:`linear-gradient(135deg,${T.teal100},${T.teal50})` }}/>
+                <div className="relative z-10 flex items-center justify-center w-full h-full">
+                  <Avatar expr="idea" active size={96}/>
+                </div>
+                <SpeakRings active/>
+              </div>
+
+              <div className="w-full rounded-3xl px-5 py-4 text-center" style={{ background:'#ffffff', border:`1.5px solid ${T.tealA15}`, boxShadow: T.cardShadow }}>
+                <div style={{ fontSize:34, marginBottom:6 }}>🪕</div>
+                <p style={{ fontFamily:"'DM Serif Display',Georgia,serif", fontSize:19, color:T.teal700, lineHeight:1.5, margin:0, minHeight:56 }}>
+                  {bhajanOfferTyped}
+                  {bhajanOfferTyped.length < bhajanOfferLine.length && (
+                    <span style={{ animation:'breathe 0.7s infinite', display:'inline-block', color:T.teal500 }}>▋</span>
+                  )}
+                </p>
+              </div>
+
+              {bhajanOfferTyped.length >= bhajanOfferLine.length && (
+                <div className="w-full flex flex-col gap-2.5">
+                  <Btn onClick={handleBhajanYes} bg={T.tealGrad} color="white" shadow={`0 6px 22px ${T.tealA40}`} minH={58}>
+                    <span style={{ fontSize:20 }}>🎵</span> {walkAccepted ? 'Yes, Play Some' : 'Yes, Play One'}
+                  </Btn>
+                  <Btn onClick={handleBhajanNo} bg="#ffffff" border={`2px solid ${T.tealA25}`} color={T.teal700} minH={58}>
+                    {walkAccepted ? 'No, Just the Walk' : 'No, Maybe Later'}
+                  </Btn>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── BHAJAN PLAYING ── */}
+        {state === 'walk-bhajan-playing' && (
+          <div className="relative flex-1 flex flex-col items-center justify-center overflow-y-auto overflow-x-hidden px-6 gap-5 py-6" style={{ background:`linear-gradient(175deg,${T.teal50},${T.teal100})`, animation:'fadeIn 0.4s ease-out' }}>
+            <div className="relative" style={{ width:100, height:100 }}>
+              <div className="absolute inset-0 rounded-full" style={{ background:`linear-gradient(135deg,${T.teal100},${T.teal50})` }}/>
+              <div className="relative z-10 flex items-center justify-center w-full h-full">
+                <Avatar expr="take_care" size={88}/>
+              </div>
+            </div>
+
+            <div className="w-full rounded-3xl px-5 py-5 text-center flex flex-col items-center gap-3" style={{ background:'#ffffff', border:`1.5px solid ${T.tealA15}`, boxShadow: T.cardShadow }}>
+              <div style={{ fontSize:38 }}>🎵</div>
+              <div style={{ fontFamily:"'DM Serif Display',Georgia,serif", fontSize:19, color:T.teal700, textAlign:'center' }}>
+                Now Playing
+              </div>
+              <div style={{ fontWeight:700, fontSize:15, color:T.teal600 }}>A Bhajan for You</div>
+              <VoiceWave color={T.teal500} size="lg"/>
+            </div>
+
+            <Btn onClick={handleWalkFinish} bg={T.tealGrad} color="white" shadow={`0 6px 22px ${T.tealA40}`} minH={58}>
+              Done, Thank You
+            </Btn>
+          </div>
+        )}
+
+        {/* ── WALK DONE (calm close, auto-returns) ── */}
+        {state === 'walk-done' && (
+          <div className="relative flex-1 flex flex-col items-center justify-center overflow-y-auto overflow-x-hidden px-6 gap-5 py-6" style={{ background:`linear-gradient(175deg,${T.teal50},${T.teal100})`, animation:'fadeIn 0.4s ease-out' }}>
+            <div className="relative" style={{ width:100, height:100 }}>
+              <div className="absolute inset-0 rounded-full" style={{ background:`linear-gradient(135deg,${T.teal100},${T.teal50})` }}/>
+              <div className="relative z-10 flex items-center justify-center w-full h-full">
+                <Avatar expr="take_care" size={88}/>
+              </div>
+            </div>
+
+            <div className="w-full rounded-3xl px-5 py-4 text-center" style={{ background:'#ffffff', border:`1.5px solid ${T.tealA15}`, boxShadow: T.cardShadow }}>
+              <p style={{ fontWeight:700, fontSize:17, color:T.teal700, lineHeight:1.55, margin:0 }}>
+                {walkAccepted ? WALK_DONE_NO_BHAJAN : RELAX_NO_BHAJAN}
+              </p>
+            </div>
+
+            <Btn onClick={handleWalkFinish} bg={T.tealGrad} color="white" shadow={`0 6px 22px ${T.tealA40}`} minH={58}>
               Okay
             </Btn>
           </div>
