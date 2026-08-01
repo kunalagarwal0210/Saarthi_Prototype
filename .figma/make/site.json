@@ -1,0 +1,10 @@
+{
+  "description": "Create stunning fantasy watercolor PowerPoint presentations with editable content and backgrounds, perfect for engaging storytelling and professional use.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
