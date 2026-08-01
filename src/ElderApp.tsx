@@ -58,6 +58,7 @@ const AUDIO_CLIPS: Record<string, string> = {
   "I'll wait while you take it. Just let me know when you're done.": '/audio/reminder3.mp3',
   "No problem at all, Mrs. Verma. I'll remind you again in 10 minutes. Take care!": '/audio/snooze.mp3',
   "You've taken your medicine on time 6 days this week.": '/audio/weekly.mp3',
+  "Wonderful, Mrs. Verma! You're taking great care of yourself. Keep it up!": '/audio/confirmed.mp3',
 }
 
 function useSpeech() {
