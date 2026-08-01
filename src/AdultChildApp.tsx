@@ -9,6 +9,13 @@ type Screen =
   | 'add-parent-step2'
   | 'add-parent-step3'
   | 'dashboard'
+  | 'monthly-summary'
+
+interface Medication {
+  id: number
+  name: string
+  dosage: string
+}
 
 interface ParentProfile {
   id: number
@@ -17,11 +24,18 @@ interface ParentProfile {
   dob: string
   lang: string
   emoji: string
-  medName: string
-  dosage: string
+  medications: Medication[]
   activities: string[]
   music: string[]
   customRel?: string
+}
+
+// Used while a new profile is being created in the 3-step wizard. medName/dosage
+// are staged here as flat fields (simpler form UX) and only get folded into a
+// medications[] entry once setup finishes — see finishSetup().
+type ParentDraft = Partial<Omit<ParentProfile, 'medications'>> & {
+  medName?: string
+  dosage?: string
 }
 
 const REL_EMOJI: Record<string, string> = {
@@ -104,16 +118,6 @@ const FamilyIllustration = () => (
   </svg>
 )
 
-const MedicineIllustration = () => (
-  <svg viewBox="0 0 80 80" fill="none" className="w-16 h-16">
-    <circle cx="40" cy="40" r="36" fill="#ccfbf1"/>
-    <rect x="28" y="22" width="24" height="36" rx="6" fill="#14b8a6" opacity="0.7"/>
-    <rect x="28" y="22" width="24" height="16" rx="6" fill="#0d9488"/>
-    <rect x="36" y="34" width="8" height="3" rx="1.5" fill="white"/>
-    <rect x="38.5" y="31.5" width="3" height="8" rx="1.5" fill="white"/>
-  </svg>
-)
-
 // ─── Shared Components ────────────────────────────────────────────────────────
 const PhoneFrame = ({ children, bg = 'bg-gray-50' }: { children: React.ReactNode; bg?: string }) => (
   <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-teal-50 via-white to-green-50 p-4">
@@ -168,7 +172,7 @@ const InputField = ({
   label: string; placeholder: string; type?: string; value: string; onChange: (v: string) => void
 }) => (
   <div className="flex flex-col gap-1.5">
-    <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{label}</label>
+    <label className="text-xs font-bold text-gray-500 tracking-wide">{label}</label>
     <input
       type={type}
       placeholder={placeholder}
@@ -194,7 +198,6 @@ const StepIndicator = ({ current, total }: { current: number; total: number }) =
 
 // ─── Screen 1: Sign Up ────────────────────────────────────────────────────────
 const SignUpScreen = ({ onNext }: { onNext: (s: Screen) => void }) => {
-  const [agreed, setAgreed] = useState(false)
   return (
     <PhoneFrame bg="bg-white">
       <div className="px-6 pt-6 pb-8 flex flex-col min-h-full">
@@ -205,54 +208,53 @@ const SignUpScreen = ({ onNext }: { onNext: (s: Screen) => void }) => {
               <path d="M16 11h-3V8h-2v3H8v2h3v3h2v-3h3z" fill="white"/>
             </svg>
           </div>
-          <span className="text-base font-extrabold text-teal-700 tracking-tight">CareCircle</span>
+          <span className="text-base font-extrabold text-teal-700 tracking-tight">Saarthi</span>
         </div>
 
         <div className="mb-8">
           <h1 className="font-display text-3xl text-gray-900 leading-tight mb-3">
-            Welcome to<br /><span className="text-teal-600">CareCircle</span>
+            Welcome to<br /><span className="text-teal-600">Saarthi</span>
           </h1>
           <p className="text-sm text-gray-500 leading-relaxed">
-            Help your loved ones stay healthy and independent with the support of an AI companion.
+            Help your loved ones stay healthy and independent with the support of{' '}
+            <span className="text-teal-600 font-bold">Sakha</span>, our AI companion.
           </p>
         </div>
 
         <div className="flex flex-col gap-3 mb-5">
-          <OutlineButton label="Continue with Google" icon={<IconGoogle />} onClick={() => onNext('family-profiles')} />
           <button
-            onClick={() => onNext('signup-email')}
+            onClick={() => onNext('family-profiles')}
             className="w-full py-3.5 rounded-2xl font-semibold text-sm bg-teal-600 text-white flex items-center justify-center gap-2.5 shadow-lg shadow-teal-200 hover:bg-teal-700 transition-all active:scale-95"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-              <polyline points="22,6 12,13 2,6"/>
-            </svg>
-            Continue with Email
+            <span className="w-6 h-6 rounded-full bg-white flex items-center justify-center flex-shrink-0">
+              <IconGoogle />
+            </span>
+            Continue with Google
           </button>
+          <OutlineButton
+            label="Continue with Email"
+            icon={
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+            }
+            onClick={() => onNext('signup-email')}
+          />
         </div>
 
         <div className="flex items-center gap-3 my-2">
           <div className="flex-1 h-px bg-gray-100"/>
-          <span className="text-xs text-gray-400 font-semibold">Secure & Private</span>
+          <span className="text-xs text-gray-400 font-semibold">Secure & private</span>
           <div className="flex-1 h-px bg-gray-100"/>
         </div>
 
-        <div className="mt-auto pt-6">
-          <div className="bg-teal-50 rounded-2xl p-4 mb-4">
-            <p className="text-xs text-gray-500 leading-relaxed">
-              By creating an account, you agree to our{' '}
-              <span className="text-teal-600 font-bold">Terms & Conditions</span> and{' '}
-              <span className="text-teal-600 font-bold">Privacy Policy</span>. We securely handle personal and health information in accordance with applicable data protection regulations and healthcare privacy standards.
-            </p>
-          </div>
-          <button onClick={() => setAgreed(!agreed)} className="flex items-start gap-3 w-full text-left">
-            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all ${agreed ? 'bg-teal-600 border-teal-600' : 'border-gray-300'}`}>
-              {agreed && <IconCheck size={12} />}
-            </div>
-            <span className="text-xs text-gray-600 font-semibold leading-relaxed">
-              I agree to the Terms & Conditions and Privacy Policy
-            </span>
-          </button>
+        <div className="pt-4">
+          <p className="text-xs text-gray-400 text-center leading-relaxed">
+            By continuing, you agree to our{' '}
+            <span className="text-teal-600 font-bold">Terms & Conditions</span> and{' '}
+            <span className="text-teal-600 font-bold">Privacy Policy</span>.
+          </p>
         </div>
       </div>
     </PhoneFrame>
@@ -276,8 +278,8 @@ const EmailSignUpScreen = ({ onNext, onBack }: { onNext: (s: Screen) => void; on
           <span className="font-bold text-gray-800">Create Account</span>
         </div>
 
-        <h2 className="font-display text-2xl text-gray-900 mb-1">Your details</h2>
-        <p className="text-sm text-gray-400 mb-7">We'll use this to keep your family safe.</p>
+        <h2 className="font-display text-2xl text-gray-900 mb-1">Create your account</h2>
+        <p className="text-sm text-gray-400 mb-7">We'll use this to keep your family safe on Saarthi.</p>
 
         <div className="flex flex-col gap-4 mb-6">
           <div className="flex gap-3">
@@ -321,9 +323,9 @@ const FamilyProfilesScreen = ({
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-teal-600 rounded-xl flex items-center justify-center">
-            <span className="text-white text-xs font-bold">CC</span>
+            <span className="text-white text-xs font-bold">S</span>
           </div>
-          <span className="font-extrabold text-teal-700 text-sm">CareCircle</span>
+          <span className="font-extrabold text-teal-700 text-sm">Saarthi</span>
         </div>
         <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -342,9 +344,6 @@ const FamilyProfilesScreen = ({
       {profiles.length === 0 ? (
         <div className="py-2">
           <FamilyIllustration />
-          <p className="text-center text-sm text-gray-400 leading-relaxed mt-2">
-            Add your parent or grandparent's profile to<br />set up their personalised care plan.
-          </p>
         </div>
       ) : (
         <div className="flex flex-col gap-3 mb-4">
@@ -360,8 +359,11 @@ const FamilyProfilesScreen = ({
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-gray-900 text-base truncate">{p.name}</p>
                 <p className="text-sm text-gray-400 font-semibold">{p.rel}</p>
-                {p.medName && (
-                  <p className="text-xs text-teal-600 font-semibold mt-0.5 truncate">💊 {p.medName}</p>
+                {p.medications.length > 0 && (
+                  <p className="text-xs text-teal-600 font-semibold mt-0.5 truncate">
+                    💊 {p.medications[0].name}
+                    {p.medications.length > 1 ? ` +${p.medications.length - 1} more` : ''}
+                  </p>
                 )}
               </div>
               <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
@@ -377,7 +379,7 @@ const FamilyProfilesScreen = ({
       )}
 
       <div className="mt-auto">
-        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3 text-center">
+        <p className="text-sm font-bold text-gray-600 mb-3 text-center">
           Who would you like to add?
         </p>
         <div className="grid grid-cols-2 gap-3 mb-3">
@@ -415,8 +417,8 @@ const FamilyProfilesScreen = ({
 const AddParentStep1 = ({
   draft, setDraft, onNext, onBack,
 }: {
-  draft: Partial<ParentProfile>
-  setDraft: (d: Partial<ParentProfile>) => void
+  draft: ParentDraft
+  setDraft: (d: ParentDraft) => void
   onNext: (s: Screen) => void
   onBack: () => void
 }) => {
@@ -436,7 +438,7 @@ const AddParentStep1 = ({
 
         <StepIndicator current={1} total={3} />
 
-        <h2 className="font-display text-2xl text-gray-900 mb-1">Basic Information</h2>
+        <h2 className="font-display text-2xl text-gray-900 mb-1">Basic information</h2>
         <p className="text-sm text-gray-400 mb-6">Tell us about your loved one.</p>
 
         <div className="flex justify-center mb-6">
@@ -451,11 +453,17 @@ const AddParentStep1 = ({
         </div>
 
         <div className="flex flex-col gap-4 mb-6">
-          <InputField label="Family Member's Name" placeholder="e.g. Meera Sharma" value={draft.name ?? ''} onChange={set('name')} />
+          {/* Fix 5: personalised name label based on relationship */}
+          <InputField
+            label={showOther ? (draft.customRel ? `${draft.customRel}'s name` : "Their name") : `${draft.rel ?? 'Family member'}'s name`}
+            placeholder="e.g. Meera Sharma"
+            value={draft.name ?? ''}
+            onChange={set('name')}
+          />
 
           {/* Relationship */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Relationship</label>
+            <label className="text-xs font-bold text-gray-500 tracking-wide">Relationship</label>
             <div className="grid grid-cols-2 gap-2">
               {['Mother', 'Father', 'Grandmother', 'Grandfather'].map(r => (
                 <button
@@ -469,7 +477,6 @@ const AddParentStep1 = ({
                 </button>
               ))}
             </div>
-            {/* Other spans full width below the grid */}
             <button
               onClick={() => set('rel')('Other')}
               className={`w-full py-3 rounded-xl border-2 text-sm font-semibold transition-all ${
@@ -478,7 +485,6 @@ const AddParentStep1 = ({
             >
               🧓 Other
             </button>
-            {/* Text box appears when Other is selected */}
             {showOther && (
               <input
                 autoFocus
@@ -490,25 +496,35 @@ const AddParentStep1 = ({
             )}
           </div>
 
-          {/* Date of Birth — entire field is clickable */}
+          {/* Fix 6 & 7: full-area clickable date field opens native picker on any
+              click (via showPicker()); no future dates; single calendar icon —
+              see the updated ::-webkit-calendar-picker-indicator rule in index.css. */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Date of Birth</label>
+            <label htmlFor="dob-input" className="text-xs font-bold text-gray-500 tracking-wide cursor-pointer">
+              Date of birth
+            </label>
             <div
-              className="relative w-full cursor-pointer"
-              onClick={() => dobRef.current?.focus()}
+              className="relative cursor-pointer block"
+              onClick={() => {
+                // Programmatically opens the native date picker so a click anywhere
+                // in the field works, not just on the calendar icon. showPicker() is
+                // supported in Chrome/Edge; falls back to a plain focus elsewhere.
+                try {
+                  dobRef.current?.showPicker?.()
+                } catch {
+                  dobRef.current?.focus()
+                }
+              }}
             >
               <input
+                id="dob-input"
                 ref={dobRef}
                 type="date"
+                max={new Date().toISOString().split('T')[0]}
                 value={draft.dob ?? ''}
                 onChange={e => set('dob')(e.target.value)}
-                className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-100 bg-white text-sm font-semibold text-gray-800 focus:outline-none focus:border-teal-400 transition-colors cursor-pointer appearance-none"
+                className="w-full px-4 py-3.5 pr-10 rounded-xl border-2 border-gray-100 bg-white text-sm font-semibold text-gray-800 focus:outline-none focus:border-teal-400 transition-colors cursor-pointer w-full [color-scheme:light]"
               />
-              {!draft.dob && (
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-300 pointer-events-none">
-                  DD / MM / YYYY
-                </span>
-              )}
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
@@ -517,9 +533,9 @@ const AddParentStep1 = ({
             </div>
           </div>
 
-          {/* Preferred Language — custom styled to match other fields */}
+          {/* Preferred language */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Preferred Language</label>
+            <label className="text-xs font-bold text-gray-500 tracking-wide">Preferred language</label>
             <div className="relative">
               <select
                 value={draft.lang ?? 'English'}
@@ -530,7 +546,6 @@ const AddParentStep1 = ({
                   <option key={l}>{l}</option>
                 ))}
               </select>
-              {/* Chevron icon, matches InputField visual style */}
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <polyline points="6 9 12 15 18 9"/>
@@ -550,13 +565,16 @@ const AddParentStep1 = ({
 const AddParentStep2 = ({
   draft, setDraft, onNext, onBack,
 }: {
-  draft: Partial<ParentProfile>
-  setDraft: (d: Partial<ParentProfile>) => void
+  draft: ParentDraft
+  setDraft: (d: ParentDraft) => void
   onNext: (s: Screen) => void
   onBack: () => void
 }) => {
   const [hasPhoto, setHasPhoto] = useState(false)
   const [hasPrescription, setHasPrescription] = useState(false)
+  // Derived from the dosage text itself (not separate state) so a chip's
+  // highlighted state can never drift out of sync with manual text edits.
+  const dosageParts = (draft.dosage ?? '').split(', ').map(s => s.trim()).filter(Boolean)
 
   return (
     <PhoneFrame bg="bg-white">
@@ -570,18 +588,19 @@ const AddParentStep2 = ({
 
         <StepIndicator current={2} total={3} />
 
-        <div className="flex items-center gap-3 mb-4">
-          <MedicineIllustration />
-          <div>
-            <h2 className="font-display text-2xl text-gray-900 leading-tight">Medication<br />Setup</h2>
-            <p className="text-xs text-teal-600 font-semibold">Highest priority</p>
+        <h2 className="font-display text-xl text-gray-900 leading-tight whitespace-nowrap mb-1">Medication Setup</h2>
+        <p className="text-sm text-gray-400 mb-6">Sakha uses this to send reminders on time.</p>
+
+        <div className="flex justify-center mb-6">
+          <div className="w-20 h-20 rounded-2xl bg-teal-100 flex items-center justify-center shadow-sm text-3xl">
+            💊
           </div>
         </div>
 
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-              1. What medicine should the AI remind {draft.name || 'your parent'} to take?
+            <label className="text-xs font-bold text-gray-500 tracking-wide">
+              1. What medicine should Sakha remind {draft.name || 'your family member'} to take?
             </label>
             <input
               placeholder="e.g. Metformin 500mg"
@@ -592,7 +611,7 @@ const AddParentStep2 = ({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">2. Photograph of the medicine</label>
+            <label className="text-xs font-bold text-gray-500 tracking-wide">2. Photograph of the medicine</label>
             <button
               onClick={() => setHasPhoto(true)}
               className={`w-full py-4 rounded-xl border-2 border-dashed flex items-center justify-center gap-3 transition-all ${hasPhoto ? 'border-teal-400 bg-teal-50' : 'border-gray-200 bg-gray-50'}`}
@@ -604,25 +623,44 @@ const AddParentStep2 = ({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">3. Dosage & Schedule</label>
+            <label className="text-xs font-bold text-gray-500 tracking-wide">3. Dosage & schedule</label>
             <input
               placeholder="e.g. One tablet after breakfast at 8:00 AM"
               value={draft.dosage ?? ''}
               onChange={e => setDraft({ ...draft, dosage: e.target.value })}
               className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-100 bg-white text-sm font-semibold text-gray-800 placeholder-gray-300 focus:outline-none focus:border-teal-400 transition-colors"
             />
-            <div className="flex flex-wrap gap-2 mt-1">
-              {['8:00 AM', '1:00 PM', '8:00 PM', 'Bedtime'].map(t => (
-                <button key={t} className="px-3 py-1.5 rounded-lg bg-teal-50 text-teal-600 text-xs font-bold border border-teal-200 hover:bg-teal-100 transition-all">
-                  {t}
-                </button>
-              ))}
+            <p className="text-xs text-gray-400 font-semibold">Or tap a common time:</p>
+            <div className="flex flex-wrap gap-2">
+              {['8:00 AM', '1:00 PM', '6:00 PM', '9:00 PM', 'Bedtime'].map(t => {
+                const selected = dosageParts.includes(t)
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                      const next = selected
+                        ? dosageParts.filter(x => x !== t)
+                        : [...dosageParts, t]
+                      setDraft({ ...draft, dosage: next.join(', ') })
+                    }}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold border-2 transition-all flex items-center gap-1.5 active:scale-95 ${
+                      selected
+                        ? 'bg-teal-600 border-teal-600 text-white'
+                        : 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100 hover:border-teal-400'
+                    }`}
+                  >
+                    {selected && <IconCheck size={11} />}
+                    {t}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-              4. Upload prescription <span className="text-gray-300 normal-case font-normal">(optional)</span>
+            <label className="text-xs font-bold text-gray-500 tracking-wide">
+              4. Upload prescription <span className="text-gray-300 font-normal">(optional)</span>
             </label>
             <button
               onClick={() => setHasPrescription(true)}
@@ -654,8 +692,8 @@ const AddParentStep2 = ({
 const AddParentStep3 = ({
   draft, setDraft, onFinish, onBack,
 }: {
-  draft: Partial<ParentProfile>
-  setDraft: (d: Partial<ParentProfile>) => void
+  draft: ParentDraft
+  setDraft: (d: ParentDraft) => void
   onFinish: () => void
   onBack: () => void
 }) => {
@@ -668,7 +706,8 @@ const AddParentStep3 = ({
     setDraft({ ...draft, [key]: next })
   }
 
-  const activityOptions = ['Walking 🚶', 'Bhajans 🙏', 'Gardening 🌱', 'Yoga 🧘', 'Reading 📖', 'Cooking 🍳', 'Painting 🎨', 'Chess ♟️']
+  // Bhajans belongs to music only — no duplicate in activities
+  const activityOptions = ['Walking 🚶', 'Gardening 🌱', 'Yoga 🧘', 'Reading 📖', 'Cooking 🍳', 'Painting 🎨', 'Chess ♟️', 'Cycling 🚴']
   const musicOptions = ['Bhajans 🕉️', 'Old Hindi Songs 🎵', 'Instrumental 🎹', 'Classical 🎻', 'Devotional 🙌', 'Folk 🪘']
 
   return (
@@ -678,18 +717,20 @@ const AddParentStep3 = ({
           <button onClick={onBack} className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
             <IconChevronLeft />
           </button>
-          <span className="font-bold text-gray-800">Personalise for {draft.name || 'your parent'}</span>
+          <span className="font-bold text-gray-800">Personalise for {draft.name || 'your family member'}</span>
         </div>
 
         <StepIndicator current={3} total={3} />
 
-        <h2 className="font-display text-2xl text-gray-900 mb-1">Interests &<br />Preferences</h2>
-        <p className="text-sm text-gray-400 mb-6">Help the AI companion feel personal and familiar.</p>
+        <h2 className="font-display text-xl text-gray-900 mb-1 whitespace-nowrap">Interests &amp; Preferences</h2>
+        <p className="text-sm text-gray-400 mb-6">
+          These details help personalise the experience for {draft.name || 'your family member'}.
+        </p>
 
         <div className="flex flex-col gap-6">
           <div>
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-3">
-              Activities {draft.name || 'your parent'} enjoys
+            <label className="text-sm font-bold text-gray-700 block mb-2">
+              Activities {draft.name || 'your family member'} enjoys
             </label>
             <div className="flex flex-wrap gap-2">
               {activityOptions.map(a => (
@@ -707,8 +748,8 @@ const AddParentStep3 = ({
           </div>
 
           <div>
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-3">
-              Music & Spiritual content they enjoy
+            <label className="text-sm font-bold text-gray-700 block mb-2">
+              Music & spiritual content {draft.name || 'they'} enjoys
             </label>
             <div className="flex flex-wrap gap-2">
               {musicOptions.map(m => (
@@ -726,8 +767,8 @@ const AddParentStep3 = ({
           </div>
 
           <div>
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-2">
-              Anything else the AI should know? <span className="text-gray-300 normal-case font-normal">(optional)</span>
+            <label className="text-sm font-bold text-gray-700 block mb-2">
+              Anything else worth knowing? <span className="text-gray-400 font-normal">(optional)</span>
             </label>
             <textarea
               rows={3}
@@ -740,9 +781,9 @@ const AddParentStep3 = ({
         </div>
 
         <div className="mt-6">
-          <PrimaryButton label="Finish Setup ✓" onClick={onFinish} />
+          <PrimaryButton label="Finish setup" onClick={onFinish} />
           <p className="text-center text-xs text-gray-400 mt-3 font-semibold">
-            {draft.name ? `${draft.name}'s` : "Your parent's"} profile will be ready in seconds
+            {draft.name ? `${draft.name}'s` : "Their"} profile will be ready in seconds
           </p>
         </div>
       </div>
@@ -756,19 +797,52 @@ const DashboardScreen = ({
   profiles,
   onSwitchProfile,
   onAddParent,
+  onUpdateProfile,
+  onOpenSummary,
 }: {
   profile: ParentProfile
   profiles: ParentProfile[]
   onSwitchProfile: (id: number) => void
   onAddParent: () => void
+  onUpdateProfile: (id: number, patch: Partial<ParentProfile>) => void
+  onOpenSummary: () => void
 }) => {
   const [activeTab, setActiveTab] = useState<'today' | 'medications' | 'profile'>('today')
+  // editingMedId is 'new' when adding a fresh medication, a medication's id when
+  // editing an existing one, or null when the editor is closed.
+  const [editingMedId, setEditingMedId] = useState<number | 'new' | null>(null)
+  const [medDraft, setMedDraft] = useState({ name: '', dosage: '' })
+
+  const openNewMedEditor = () => {
+    setMedDraft({ name: '', dosage: '' })
+    setEditingMedId('new')
+  }
+  const openEditMedEditor = (med: Medication) => {
+    setMedDraft({ name: med.name, dosage: med.dosage })
+    setEditingMedId(med.id)
+  }
+  const saveMedEditor = () => {
+    if (editingMedId === 'new') {
+      const newMed: Medication = { id: Date.now(), name: medDraft.name, dosage: medDraft.dosage }
+      onUpdateProfile(profile.id, { medications: [...profile.medications, newMed] })
+    } else if (editingMedId !== null) {
+      onUpdateProfile(profile.id, {
+        medications: profile.medications.map(m => (m.id === editingMedId ? { ...m, ...medDraft } : m)),
+      })
+    }
+    setEditingMedId(null)
+  }
+  const deleteMed = (id: number) => {
+    onUpdateProfile(profile.id, { medications: profile.medications.filter(m => m.id !== id) })
+  }
+
+  const primaryMed = profile.medications[0]
 
   const tasks = [
     { time: '8:00 AM', label: 'Morning Medicine', done: true, icon: '💊' },
     { time: '8:30 AM', label: 'Breakfast', done: true, icon: '🍽️' },
     { time: '10:00 AM', label: 'Hydration Reminder', done: true, icon: '💧' },
-    { time: '2:00 PM', label: profile.medName || 'Afternoon Medicine', done: false, icon: '💊', upcoming: true },
+    { time: '2:00 PM', label: primaryMed?.name || 'Afternoon Medicine', done: false, icon: '💊', upcoming: true },
     { time: '4:00 PM', label: 'Afternoon Walk', done: false, icon: '🚶' },
     { time: '8:00 PM', label: 'Evening Medicine', done: false, icon: '💊' },
   ]
@@ -789,7 +863,7 @@ const DashboardScreen = ({
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-teal-200 text-xs font-semibold">Good afternoon,</p>
-              <p className="text-white font-bold text-base">CareCircle 👋</p>
+              <p className="text-white font-bold text-base">Saarthi 👋</p>
             </div>
             {/* Profile switcher pill */}
             {profiles.length > 1 && (
@@ -869,7 +943,7 @@ const DashboardScreen = ({
                 <div>
                   <p className="font-bold text-amber-800 text-sm">Upcoming Reminder</p>
                   <p className="text-amber-600 text-xs mt-0.5">
-                    {profile.medName || 'Medicine'} at 2:00 PM
+                    {primaryMed?.name || 'Medicine'} at 2:00 PM
                   </p>
                 </div>
                 <div className="ml-auto flex-shrink-0">
@@ -908,6 +982,38 @@ const DashboardScreen = ({
                 </div>
               </div>
 
+              {/* Monthly Summary — a lighter-weight trend view for the adult
+                  child; distinct from "Today's Care Summary" above, which is
+                  day-level and task-oriented. This one answers "how has this
+                  month gone overall," which matters most for reassurance
+                  when checking in from a distance rather than day-to-day. */}
+              <button
+                onClick={onOpenSummary}
+                className="w-full bg-gradient-to-br from-teal-600 to-teal-700 rounded-2xl p-4 text-left shadow-sm hover:shadow-md transition-all active:scale-95"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <p className="font-bold text-white text-sm">Monthly Summary</p>
+                  <span className="text-xs text-teal-100 font-bold">July 2026</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div>
+                    <p className="text-2xl font-extrabold text-white leading-none">86%</p>
+                    <p className="text-xs text-teal-100 font-semibold mt-1">Medicine adherence</p>
+                  </div>
+                  <div className="w-px h-8 bg-white/20"/>
+                  <div>
+                    <p className="text-2xl font-extrabold text-white leading-none">3</p>
+                    <p className="text-xs text-teal-100 font-semibold mt-1">Symptoms logged</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 mt-3 text-xs font-bold text-white">
+                  View full report
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <polyline points="9 6 15 12 9 18"/>
+                  </svg>
+                </div>
+              </button>
+
               <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                 <p className="font-bold text-gray-800 text-sm mb-4">Activity Timeline</p>
                 <div className="flex flex-col gap-0">
@@ -934,46 +1040,201 @@ const DashboardScreen = ({
                 </div>
               </div>
 
-              <div>
-                <p className="font-bold text-gray-800 text-sm mb-3">Quick Actions</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { label: 'Edit Medicines', icon: '✏️', color: 'bg-teal-50 border-teal-100 text-teal-700' },
-                    { label: 'Add Medicine', icon: '➕', color: 'bg-green-50 border-green-100 text-green-700' },
-                    { label: 'Prescriptions', icon: '📄', color: 'bg-blue-50 border-blue-100 text-blue-700' },
-                    { label: 'Edit Profile', icon: '👤', color: 'bg-purple-50 border-purple-100 text-purple-700' },
-                  ].map((a, i) => (
-                    <button key={i} className={`py-3.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 ${a.color} hover:opacity-80 transition-all active:scale-95`}>
-                      <span className="text-base">{a.icon}</span>{a.label}
+              {/* ── Manage care ───────────────────────────────────────────
+                  Labels are framed around the elder (profile.name), not
+                  generically — this dashboard is the adult child acting on
+                  their parent's behalf, so "Manage medicines" read as if the
+                  elder were managing their own settings. */}
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-bold text-gray-400 tracking-wide">Manage care</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {(() => {
+                    // Framed as relationship terms ("Mom's", "Dad's"), not the raw
+                    // profile name — the adult child is the one reading this, and
+                    // that's how they'd actually refer to their own parent, not by
+                    // name. Falls back to name/customRel/"their" for less common cases.
+                    const REL_TERM: Record<string, string> = {
+                      Mother: 'Mom',
+                      Father: 'Dad',
+                      Grandmother: 'Grandma',
+                      Grandfather: 'Grandpa',
+                    }
+                    const term = REL_TERM[profile.rel] || profile.customRel || (profile.name || '').split(' ')[0] || 'their'
+                    const possessive = term.endsWith('s') ? `${term}'` : `${term}'s`
+                    return [
+                      { label: `${possessive}\nmedicines`, onClick: () => setActiveTab('medications'), icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 17h7M17 14v7"/></svg> },
+                      // "Prescriptions" and "Edit profile" don't have real destinations yet
+                      // (no prescriptions or edit-profile screen exists in this prototype) —
+                      // routed to the closest relevant tab for now rather than left dead.
+                      { label: `${possessive}\nprescriptions`, onClick: () => setActiveTab('medications'), icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> },
+                      { label: `Edit\n${possessive} profile`, onClick: () => setActiveTab('profile'), icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
+                    ]
+                  })().map((a, i) => (
+                    <button
+                      key={i}
+                      onClick={a.onClick}
+                      className="py-4 rounded-xl border-2 border-gray-100 bg-white flex flex-col items-center justify-center gap-2 text-gray-500 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 transition-all active:scale-95"
+                    >
+                      {a.icon}
+                      <span className="text-xs font-bold text-center leading-tight whitespace-pre-line">{a.label}</span>
                     </button>
                   ))}
                 </div>
+
+                {/* Quick action to add another elder profile without leaving the
+                    dashboard — mirrors the dashed "add" pattern used on the
+                    Family Profiles screen for visual consistency. */}
+                <button
+                  onClick={onAddParent}
+                  className="w-full py-3.5 rounded-2xl border-2 border-dashed border-gray-200 bg-white flex items-center justify-center gap-2.5 hover:border-teal-300 hover:bg-teal-50 transition-all active:scale-95 mt-1"
+                >
+                  <div className="w-6 h-6 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <IconPlus />
+                  </div>
+                  <span className="text-sm font-bold text-gray-500">Add another family member</span>
+                </button>
               </div>
             </>
           )}
 
           {activeTab === 'medications' && (
             <div className="flex flex-col gap-3">
-              <p className="font-bold text-gray-800 text-sm">
-                {profile.name ? `${profile.name}'s` : 'Current'} Medications
-              </p>
-              {profile.medName ? (
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center text-xl">💊</div>
-                    <div className="flex-1">
-                      <p className="font-bold text-gray-800 text-sm">{profile.medName}</p>
-                      <p className="text-xs text-gray-400 font-semibold mt-0.5">{profile.dosage || 'As prescribed · 8:00 AM'}</p>
-                    </div>
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-green-100 text-green-700">Taken ✓</span>
-                  </div>
-                </div>
-              ) : (
+              <div className="flex items-center justify-between">
+                <p className="font-bold text-gray-800 text-sm">
+                  {profile.name ? `${profile.name}'s` : 'Current'} medications
+                </p>
+                <button className="text-xs font-bold text-teal-600 flex items-center gap-1 hover:opacity-70 transition-all">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                  </svg>
+                  Prescriptions
+                </button>
+              </div>
+
+              {profile.medications.length === 0 && editingMedId === null && (
                 <p className="text-sm text-gray-400 text-center py-4">No medications added yet.</p>
               )}
-              <button className="w-full py-3.5 rounded-2xl border-2 border-dashed border-teal-300 bg-teal-50 flex items-center justify-center gap-2 text-teal-600 text-sm font-bold">
-                <IconPlus /> Add New Medicine
-              </button>
+
+              {profile.medications.map(med => (
+                editingMedId === med.id ? (
+                  <div key={med.id} className="bg-white rounded-2xl p-4 shadow-sm border-2 border-teal-200 flex flex-col gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-gray-500 tracking-wide">Medicine name</label>
+                      <input
+                        autoFocus
+                        placeholder="e.g. Metformin 500mg"
+                        value={medDraft.name}
+                        onChange={e => setMedDraft(d => ({ ...d, name: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 rounded-lg border-2 border-gray-100 bg-white text-sm font-semibold text-gray-800 placeholder-gray-300 focus:outline-none focus:border-teal-400 transition-colors"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-gray-500 tracking-wide">Dosage & schedule</label>
+                      <input
+                        placeholder="e.g. 8:00 AM, 2:00 PM"
+                        value={medDraft.dosage}
+                        onChange={e => setMedDraft(d => ({ ...d, dosage: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 rounded-lg border-2 border-gray-100 bg-white text-sm font-semibold text-gray-800 placeholder-gray-300 focus:outline-none focus:border-teal-400 transition-colors"
+                      />
+                    </div>
+                    <div className="flex gap-2 mt-1">
+                      <button
+                        onClick={() => { deleteMed(med.id); setEditingMedId(null) }}
+                        className="py-2.5 px-3 rounded-xl border-2 border-red-100 text-red-500 text-sm font-bold hover:bg-red-50 transition-all"
+                      >
+                        Delete
+                      </button>
+                      <button
+                        onClick={() => setEditingMedId(null)}
+                        className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-gray-500 text-sm font-bold hover:bg-gray-50 transition-all"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={saveMedEditor}
+                        disabled={!medDraft.name}
+                        className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                          medDraft.name ? 'bg-teal-600 text-white hover:bg-teal-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={med.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center text-xl flex-shrink-0">💊</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-gray-800 text-sm truncate">{med.name}</p>
+                        <p className="text-xs text-gray-400 font-semibold mt-0.5">{med.dosage || 'As prescribed · 8:00 AM'}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-green-100 text-green-700">Taken ✓</span>
+                        <button
+                          onClick={() => openEditMedEditor(med)}
+                          className="text-xs font-bold text-gray-400 hover:text-teal-600 flex items-center gap-1 transition-all"
+                        >
+                          <IconEdit /> Edit
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              ))}
+
+              {editingMedId === 'new' && (
+                <div className="bg-white rounded-2xl p-4 shadow-sm border-2 border-teal-200 flex flex-col gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-gray-500 tracking-wide">Medicine name</label>
+                    <input
+                      autoFocus
+                      placeholder="e.g. Metformin 500mg"
+                      value={medDraft.name}
+                      onChange={e => setMedDraft(d => ({ ...d, name: e.target.value }))}
+                      className="w-full px-3.5 py-2.5 rounded-lg border-2 border-gray-100 bg-white text-sm font-semibold text-gray-800 placeholder-gray-300 focus:outline-none focus:border-teal-400 transition-colors"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-gray-500 tracking-wide">Dosage & schedule</label>
+                    <input
+                      placeholder="e.g. 8:00 AM, 2:00 PM"
+                      value={medDraft.dosage}
+                      onChange={e => setMedDraft(d => ({ ...d, dosage: e.target.value }))}
+                      className="w-full px-3.5 py-2.5 rounded-lg border-2 border-gray-100 bg-white text-sm font-semibold text-gray-800 placeholder-gray-300 focus:outline-none focus:border-teal-400 transition-colors"
+                    />
+                  </div>
+                  <div className="flex gap-2 mt-1">
+                    <button
+                      onClick={() => setEditingMedId(null)}
+                      className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-gray-500 text-sm font-bold hover:bg-gray-50 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={saveMedEditor}
+                      disabled={!medDraft.name}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                        medDraft.name ? 'bg-teal-600 text-white hover:bg-teal-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      }`}
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {editingMedId !== 'new' && (
+                <button
+                  onClick={openNewMedEditor}
+                  className="w-full py-3.5 rounded-2xl border-2 border-dashed border-gray-200 bg-white flex items-center justify-center gap-2.5 hover:border-teal-300 hover:bg-teal-50 transition-all active:scale-95"
+                >
+                  <div className="w-6 h-6 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <IconPlus />
+                  </div>
+                  <span className="text-sm font-bold text-gray-500">Add medicine</span>
+                </button>
+              )}
             </div>
           )}
 
@@ -994,7 +1255,7 @@ const DashboardScreen = ({
                   {[
                     { label: 'Relationship', value: profile.rel },
                     { label: 'Language', value: profile.lang },
-                    { label: 'Medicines', value: profile.medName ? '1 active' : 'None added' },
+                    { label: 'Medicines', value: profile.medications.length > 0 ? `${profile.medications.length} active` : 'None added' },
                     { label: 'AI Companion', value: 'Online ✅' },
                   ].map((s, i) => (
                     <div key={i} className="bg-gray-50 rounded-xl p-3">
@@ -1022,13 +1283,95 @@ const DashboardScreen = ({
   )
 }
 
+// ─── Screen 5: Monthly Summary ────────────────────────────────────────────────
+// Illustrative/mock data — this prototype has no real historical event log yet.
+// Once real adherence/symptom events are tracked, this should be computed from
+// that data rather than hardcoded.
+const MonthlySummaryScreen = ({ profile, onBack }: { profile: ParentProfile; onBack: () => void }) => {
+  const weeklyAdherence = [
+    { label: 'Week 1', pct: 92 },
+    { label: 'Week 2', pct: 78 },
+    { label: 'Week 3', pct: 88 },
+    { label: 'Week 4', pct: 86 },
+  ]
+  const avgAdherence = Math.round(weeklyAdherence.reduce((s, w) => s + w.pct, 0) / weeklyAdherence.length)
+
+  const stats = [
+    { emoji: '💊', label: 'Doses taken on time', value: '104 of 120' },
+    { emoji: '⚠️', label: 'Missed doses', value: '16' },
+    { emoji: '🩺', label: 'Symptoms logged', value: '3' },
+    { emoji: '🚶', label: 'Activity check-ins', value: '18 of 30 days' },
+  ]
+
+  return (
+    <PhoneFrame bg="bg-gray-50">
+      <div className="flex flex-col" style={{ minHeight: 740 }}>
+        <div className="bg-teal-600 px-5 pt-4 pb-6 rounded-b-3xl flex items-center gap-3">
+          <button onClick={onBack} className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-white flex-shrink-0">
+            <IconChevronLeft />
+          </button>
+          <div>
+            <p className="text-white font-bold text-base">Monthly Summary</p>
+            <p className="text-teal-200 text-xs font-semibold">{profile.name} · July 2026</p>
+          </div>
+        </div>
+
+        <div className="px-5 pt-4 pb-8 flex flex-col gap-4">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-1">
+              <p className="font-bold text-gray-800 text-sm">Medicine adherence</p>
+              <span className="text-lg font-extrabold text-teal-600">{avgAdherence}%</span>
+            </div>
+            <p className="text-xs text-gray-400 font-semibold mb-4">Average across the month</p>
+            <div className="flex items-end gap-3" style={{ height: 100 }}>
+              {weeklyAdherence.map(w => (
+                <div key={w.label} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
+                  <span className="text-xs font-bold text-gray-500">{w.pct}%</span>
+                  <div className="w-full bg-teal-100 rounded-lg overflow-hidden flex items-end" style={{ height: 64 }}>
+                    <div
+                      className={`w-full rounded-lg ${w.pct >= 85 ? 'bg-teal-500' : 'bg-amber-400'}`}
+                      style={{ height: `${w.pct}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-bold text-gray-400">{w.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <p className="font-bold text-gray-800 text-sm mb-3">This month at a glance</p>
+            <div className="flex flex-col gap-3">
+              {stats.map((s, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <span className="text-base w-6 text-center">{s.emoji}</span>
+                  <span className="flex-1 text-sm font-semibold text-gray-700">{s.label}</span>
+                  <span className="text-sm font-bold text-gray-800">{s.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+            <span className="text-lg">📉</span>
+            <div>
+              <p className="font-bold text-amber-800 text-sm">Week 2 dipped to 78%</p>
+              <p className="text-amber-600 text-xs mt-0.5">Worth checking in — this was the lowest week this month.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </PhoneFrame>
+  )
+}
+
 // ─── App Shell ────────────────────────────────────────────────────────────────
 export default function AdultChildApp() {
   const [screen, setScreen] = useState<Screen>('signup')
   const [history, setHistory] = useState<Screen[]>([])
   const [profiles, setProfiles] = useState<ParentProfile[]>([])
   const [activeDashboardId, setActiveDashboardId] = useState<number | null>(null)
-  const [draft, setDraft] = useState<Partial<ParentProfile>>({ rel: 'Mother', lang: 'English', activities: [], music: [] })
+  const [draft, setDraft] = useState<ParentDraft>({ rel: 'Mother', lang: 'English', activities: [], music: [] })
 
   const navigate = (next: Screen) => {
     setHistory(h => [...h, screen])
@@ -1040,6 +1383,10 @@ export default function AdultChildApp() {
     const prev = history[history.length - 1]
     setHistory(h => h.slice(0, -1))
     setScreen(prev)
+  }
+
+  const updateProfile = (id: number, patch: Partial<ParentProfile>) => {
+    setProfiles(prev => prev.map(p => (p.id === id ? { ...p, ...patch } : p)))
   }
 
   const startAddParent = () => {
@@ -1055,8 +1402,7 @@ export default function AdultChildApp() {
       dob: draft.dob ?? '',
       lang: draft.lang ?? 'English',
       emoji: REL_EMOJI[draft.rel ?? 'Mother'] ?? '🧓',
-      medName: draft.medName ?? '',
-      dosage: draft.dosage ?? '',
+      medications: draft.medName ? [{ id: Date.now(), name: draft.medName, dosage: draft.dosage ?? '' }] : [],
       activities: draft.activities ?? [],
       music: draft.music ?? [],
     }
@@ -1095,7 +1441,13 @@ export default function AdultChildApp() {
           profiles={profiles}
           onSwitchProfile={id => setActiveDashboardId(id)}
           onAddParent={() => { setHistory(h => [...h, 'dashboard']); startAddParent() }}
+          onUpdateProfile={updateProfile}
+          onOpenSummary={() => navigate('monthly-summary')}
         />
+      ) : <FamilyProfilesScreen profiles={[]} onAddParent={startAddParent} onViewDashboard={() => {}} />
+    case 'monthly-summary':
+      return activeProfile ? (
+        <MonthlySummaryScreen profile={activeProfile} onBack={goBack} />
       ) : <FamilyProfilesScreen profiles={[]} onAddParent={startAddParent} onViewDashboard={() => {}} />
     default:
       return <SignUpScreen onNext={navigate} />
