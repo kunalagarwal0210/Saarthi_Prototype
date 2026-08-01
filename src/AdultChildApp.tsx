@@ -202,12 +202,7 @@ const SignUpScreen = ({ onNext }: { onNext: (s: Screen) => void }) => {
     <PhoneFrame bg="bg-white">
       <div className="px-6 pt-6 pb-8 flex flex-col min-h-full">
         <div className="flex items-center gap-2 mb-8">
-          <div className="w-9 h-9 bg-teal-600 rounded-xl flex items-center justify-center shadow-sm">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="white"/>
-              <path d="M16 11h-3V8h-2v3H8v2h3v3h2v-3h3z" fill="white"/>
-            </svg>
-          </div>
+          <img src="/logo/saarthi-icon.png" alt="Saarthi" className="w-9 h-9 object-contain"/>
           <span className="text-base font-extrabold text-teal-700 tracking-tight">Saarthi</span>
         </div>
 
@@ -322,9 +317,7 @@ const FamilyProfilesScreen = ({
     <div className="px-6 pt-4 pb-8 flex flex-col">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-teal-600 rounded-xl flex items-center justify-center">
-            <span className="text-white text-xs font-bold">S</span>
-          </div>
+          <img src="/logo/saarthi-icon.png" alt="Saarthi" className="w-8 h-8 object-contain"/>
           <span className="font-extrabold text-teal-700 text-sm">Saarthi</span>
         </div>
         <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
