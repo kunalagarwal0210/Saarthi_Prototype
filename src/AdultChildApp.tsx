@@ -548,7 +548,7 @@ const AddParentStep1 = ({
           </div>
         </div>
 
-        <PrimaryButton label="Continue →" onClick={() => onNext('add-parent-step2')} disabled={!draft.name} />
+        <PrimaryButton label="Continue →" onClick={() => onNext('add-parent-step2')} />
       </div>
     </PhoneFrame>
   )
@@ -674,7 +674,7 @@ const AddParentStep2 = ({
         </div>
 
         <div className="mt-6">
-          <PrimaryButton label="Continue →" onClick={() => onNext('add-parent-step3')} disabled={!draft.medName} />
+          <PrimaryButton label="Continue →" onClick={() => onNext('add-parent-step3')} />
         </div>
       </div>
     </PhoneFrame>
