@@ -22,7 +22,7 @@ function ChooserScreen({ onChoose }: { onChoose: (c: Choice) => void }) {
           Saarthi
         </h1>
         <p style={{ fontSize: 14, color: teal[600], fontWeight: 700, marginTop: 2, marginBottom: 2, textAlign: 'center' }}>
-          Guiding every moment.
+          Helping elders live independently, helping families care confidently.
         </p>
         <p style={{ fontSize: 14, color: '#9ca3af', fontWeight: 600, marginTop: 10, marginBottom: 32, textAlign: 'center' }}>
           Choose how you'd like to continue
